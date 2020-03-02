@@ -7,6 +7,75 @@
 #include "INCLUDE/mp3_simple.h"
 #include "INCLUDE/waveIN_simple.h"
 #include <conio.h>
+#include <Windows.h>
+#include "MinHook.h"
+
+#if defined _M_X64
+#pragma comment(lib, "libMinHook.x64.lib")
+#elif defined _M_IX86
+#pragma comment(lib, "libMinHook-x86-v90-mtd.lib")
+#endif
+
+typedef int (WINAPI *MESSAGEBOXW)(HWND, LPCWSTR, LPCWSTR, UINT);
+
+// Pointer for calling original MessageBoxW.
+MESSAGEBOXW fpMessageBoxW = NULL;
+
+// Detour function which overrides MessageBoxW.
+int WINAPI DetourMessageBoxW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
+{
+	return fpMessageBoxW(hWnd, L"Hooked!", lpCaption, uType);
+}
+
+// https://www.codeproject.com/Articles/44326/MinHook-The-Minimalistic-x-x-API-Hooking-Libra
+int maink()
+{
+	// Initialize MinHook.
+	if (MH_Initialize() != MH_OK)
+	{
+		return 1;
+	}
+
+	// Create a hook for MessageBoxW, in disabled state.
+	if (MH_CreateHook(&MessageBoxW, &DetourMessageBoxW, 
+		reinterpret_cast<LPVOID*>(&fpMessageBoxW)) != MH_OK)
+	{
+		return 1;
+	}
+
+	// or you can use the new helper function like this.
+	//if (MH_CreateHookApiEx(
+	//    L"user32", "MessageBoxW", &DetourMessageBoxW, &fpMessageBoxW) != MH_OK)
+	//{
+	//    return 1;
+	//}
+
+	// Enable the hook for MessageBoxW.
+	if (MH_EnableHook(&MessageBoxW) != MH_OK)
+	{
+		return 1;
+	}
+
+	// Expected to tell "Hooked!".
+	MessageBoxW(NULL, L"Not hooked...", L"MinHook Sample", MB_OK);
+
+	// Disable the hook for MessageBoxW.
+	if (MH_DisableHook(&MessageBoxW) != MH_OK)
+	{
+		return 1;
+	}
+
+	// Expected to tell "Not hooked...".
+	MessageBoxW(NULL, L"Not hooked...", L"MinHook Sample", MB_OK);
+
+	// Uninitialize MinHook.
+	if (MH_Uninitialize() != MH_OK)
+	{
+		return 1;
+	}
+
+	return 0;
+}
 
 // An example of the IReceiver implementation.
 class mp3Writer: public IReceiver {
@@ -81,6 +150,7 @@ void printLines(CWaveINSimple& WaveInDevice) {
 
 int main(int argc, char* argv[])
 {
+	maink();
 	mp3Writer *mp3Wr;
 
 	char *strDeviceName = NULL;
