@@ -71,7 +71,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="odbc32.lib odbccp32.lib winmm.lib"
-				OutputFile=".\Release/mp3_stream.exe"
+				OutputFile=".\bin\mp3_stream.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				ProgramDatabaseFile=".\Release/mp3_stream.pdb"
@@ -163,7 +163,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="odbc32.lib odbccp32.lib winmm.lib"
-				OutputFile=".\Debug/mp3_stream.exe"
+				OutputFile=".\bin\mp3_stream_debug.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
