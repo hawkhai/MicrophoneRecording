@@ -157,6 +157,29 @@ int clearup()
 	return 0;
 }
 
+class KCriticalSesion
+{
+public:
+	KCriticalSesion() { ::InitializeCriticalSection(&m_sesion); }
+	~KCriticalSesion() { ::DeleteCriticalSection(&m_sesion); }
+
+	void Lock(void) { ::EnterCriticalSection(&m_sesion); }
+	void Unlock(void) { ::LeaveCriticalSection(&m_sesion); };
+
+private:
+	CRITICAL_SECTION m_sesion;
+};
+
+class KLocker
+{
+public:
+	KLocker(KCriticalSesion& session) : m_session(session) { m_session.Lock(); }
+	~KLocker() { m_session.Unlock(); }
+private:
+	KCriticalSesion& m_session;
+};
+
+KCriticalSesion gCriticalSesion;
 // An example of the IReceiver implementation.
 class mp3Writer: public IReceiver {
 private:
@@ -170,11 +193,32 @@ public:
 		if (f == NULL) throw "Can't create MP3 file.";
 	};
 
-	~mp3Writer() {
-		fclose(f);
+	~mp3Writer()
+	{
+		KLocker temp(gCriticalSesion);
+		if (f != NULL)
+		{
+			fclose(f);
+		}
 	};
 
+	void close()
+	{
+		KLocker temp(gCriticalSesion);
+		if (f != NULL)
+		{
+			fclose(f);
+		}
+	}
+
 	virtual void ReceiveBuffer(LPSTR lpData, DWORD dwBytesRecorded) {
+
+		KLocker temp(gCriticalSesion);
+		if (f == NULL)
+		{
+			return;
+		}
+
 		BYTE	mp3Out[44100 * 4];
 		DWORD	dwOut;
 		m_mp3Enc.Encode((PSHORT) lpData, dwBytesRecorded/2, mp3Out, &dwOut);
