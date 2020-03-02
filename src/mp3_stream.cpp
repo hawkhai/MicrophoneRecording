@@ -1,7 +1,7 @@
 // mp3_stream.cpp : Defines the entry point for the console application.
 //
 
-#pragma setlocale(".1251")
+//#pragma setlocale(".1251")
 
 #include "stdafx.h"
 #include "INCLUDE/mp3_simple.h"
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 	UINT nFSimpleRate = 0;
 
 
-	setlocale( LC_ALL, ".866");
+	//setlocale( LC_ALL, ".866");
 	try {
 
 		if (argc < 2) printHelp(argv[0]);
