@@ -1,1 +1,1 @@
-mp3_stream.exe "-device=SigmaTel C-Major Audio" "-line=Stereo Mix" -sr=32000 -br=32 -v=100
+mp3_stream.exe "-device=麦克风 (WO Mic Device)" "-line=主音量" -sr=32000 -br=32 -v=100
