@@ -16,64 +16,140 @@
 #pragma comment(lib, "libMinHook-x86-v90-mtd.lib")
 #endif
 
-typedef int (WINAPI *MESSAGEBOXW)(HWND, LPCWSTR, LPCWSTR, UINT);
+typedef HANDLE (WINAPI *FuncCreateFileMappingW)(HANDLE hFile,
+												LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
+												DWORD flProtect,
+												DWORD dwMaximumSizeHigh,
+												DWORD dwMaximumSizeLow,
+												LPCWSTR lpName);
+typedef LPVOID (WINAPI *FuncMapViewOfFile)(HANDLE hFileMappingObject,
+										   DWORD dwDesiredAccess,
+										   DWORD dwFileOffsetHigh,
+										   DWORD dwFileOffsetLow,
+										   SIZE_T dwNumberOfBytesToMap);
+typedef BOOL (WINAPI *FuncCreatePipe)(PHANDLE hReadPipe,
+									  PHANDLE hWritePipe,
+									  LPSECURITY_ATTRIBUTES lpPipeAttributes,
+									  DWORD nSize
+									  );
+typedef BOOL (WINAPI *FuncConnectNamedPipe)(HANDLE hNamedPipe,
+											LPOVERLAPPED lpOverlapped
+											);
+typedef HANDLE (WINAPI *FuncCreateMailslotW)(LPCWSTR lpName,
+											 DWORD nMaxMessageSize,
+											 DWORD lReadTimeout,
+											 LPSECURITY_ATTRIBUTES lpSecurityAttributes
+											 );
+typedef HANDLE (WINAPI *FuncCreateNamedPipeW)(LPCWSTR lpName,
+											  DWORD dwOpenMode,
+											  DWORD dwPipeMode,
+											  DWORD nMaxInstances,
+											  DWORD nOutBufferSize,
+											  DWORD nInBufferSize,
+											  DWORD nDefaultTimeOut,
+											  LPSECURITY_ATTRIBUTES lpSecurityAttributes
+											  );
 
-// Pointer for calling original MessageBoxW.
-MESSAGEBOXW fpMessageBoxW = NULL;
 
-// Detour function which overrides MessageBoxW.
-int WINAPI DetourMessageBoxW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
-{
-	return fpMessageBoxW(hWnd, L"Hooked!", lpCaption, uType);
+FuncCreateFileMappingW fpCreateFileMappingW = NULL;
+FuncMapViewOfFile fpMapViewOfFile = NULL;
+FuncCreatePipe fpCreatePipe = NULL;
+FuncConnectNamedPipe fpConnectNamedPipe = NULL;
+FuncCreateMailslotW fpCreateMailslotW = NULL;
+FuncCreateNamedPipeW fpCreateNamedPipeW = NULL;
+
+LPVOID WINAPI DetourMapViewOfFile(
+								  HANDLE hFileMappingObject,
+								  DWORD dwDesiredAccess,
+								  DWORD dwFileOffsetHigh,
+								  DWORD dwFileOffsetLow,
+								  SIZE_T dwNumberOfBytesToMap
+								  ) {
+									  return fpMapViewOfFile(hFileMappingObject, dwDesiredAccess, dwFileOffsetHigh, dwFileOffsetLow, dwNumberOfBytesToMap);
 }
 
+HANDLE WINAPI DetourCreateFileMappingW(
+									   HANDLE hFile,
+									   LPSECURITY_ATTRIBUTES lpFileMappingAttributes,
+									   DWORD flProtect,
+									   DWORD dwMaximumSizeHigh,
+									   DWORD dwMaximumSizeLow,
+									   LPCWSTR lpName
+									   ) {
+										   return fpCreateFileMappingW(hFile, lpFileMappingAttributes, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
+}
+
+
+BOOL WINAPI DetourCreatePipe(
+							 PHANDLE hReadPipe,
+							 PHANDLE hWritePipe,
+							 LPSECURITY_ATTRIBUTES lpPipeAttributes,
+							 DWORD nSize
+							 ) {
+								 return fpCreatePipe(hReadPipe, hWritePipe, lpPipeAttributes, nSize);
+}
+
+BOOL WINAPI DetourConnectNamedPipe(
+								   HANDLE hNamedPipe,
+								   LPOVERLAPPED lpOverlapped
+								   ) {
+									   return fpConnectNamedPipe(hNamedPipe, lpOverlapped);
+}
+
+HANDLE WINAPI DetourCreateMailslotW(
+									LPCWSTR lpName,
+									DWORD nMaxMessageSize,
+									DWORD lReadTimeout,
+									LPSECURITY_ATTRIBUTES lpSecurityAttributes
+									) {
+										return fpCreateMailslotW(lpName, nMaxMessageSize, lReadTimeout, lpSecurityAttributes);
+}
+
+HANDLE WINAPI DetourCreateNamedPipeW(
+									 LPCWSTR lpName,
+									 DWORD dwOpenMode,
+									 DWORD dwPipeMode,
+									 DWORD nMaxInstances,
+									 DWORD nOutBufferSize,
+									 DWORD nInBufferSize,
+									 DWORD nDefaultTimeOut,
+									 LPSECURITY_ATTRIBUTES lpSecurityAttributes
+									 ) {
+										 return fpCreateNamedPipeW(lpName, dwOpenMode, dwPipeMode, nMaxInstances,
+											 nOutBufferSize, nInBufferSize, nDefaultTimeOut, lpSecurityAttributes);
+}
+
+
+#define CHECK_RETURN(exp) { if ((exp) != MH_OK) return 1; }
 // https://www.codeproject.com/Articles/44326/MinHook-The-Minimalistic-x-x-API-Hooking-Libra
 int maink()
 {
-	// Initialize MinHook.
-	if (MH_Initialize() != MH_OK)
-	{
-		return 1;
-	}
+	CHECK_RETURN(MH_Initialize())
+	CHECK_RETURN(MH_CreateHook(&CreateFileMappingW, &DetourCreateFileMappingW, reinterpret_cast<LPVOID*>(&fpCreateFileMappingW)));
+	CHECK_RETURN(MH_CreateHook(&MapViewOfFile,      &DetourMapViewOfFile,      reinterpret_cast<LPVOID*>(&fpMapViewOfFile)));
+	CHECK_RETURN(MH_CreateHook(&CreatePipe,         &DetourCreatePipe,         reinterpret_cast<LPVOID*>(&fpCreatePipe)));
+	CHECK_RETURN(MH_CreateHook(&CreateNamedPipeW,   &DetourCreateNamedPipeW,   reinterpret_cast<LPVOID*>(&fpCreateNamedPipeW)));
+	CHECK_RETURN(MH_CreateHook(&CreateMailslotW,    &DetourCreateMailslotW,    reinterpret_cast<LPVOID*>(&fpCreateMailslotW)));
+	CHECK_RETURN(MH_CreateHook(&ConnectNamedPipe,   &DetourConnectNamedPipe,   reinterpret_cast<LPVOID*>(&fpConnectNamedPipe)));
 
-	// Create a hook for MessageBoxW, in disabled state.
-	if (MH_CreateHook(&MessageBoxW, &DetourMessageBoxW, 
-		reinterpret_cast<LPVOID*>(&fpMessageBoxW)) != MH_OK)
-	{
-		return 1;
-	}
+	CHECK_RETURN(MH_EnableHook(&ConnectNamedPipe));
+	CHECK_RETURN(MH_EnableHook(&CreateMailslotW));
+	CHECK_RETURN(MH_EnableHook(&CreateNamedPipeW));
+	CHECK_RETURN(MH_EnableHook(&CreatePipe));
+	CHECK_RETURN(MH_EnableHook(&MapViewOfFile));
+	CHECK_RETURN(MH_EnableHook(&CreateFileMappingW));
+	return 0;
+}
 
-	// or you can use the new helper function like this.
-	//if (MH_CreateHookApiEx(
-	//    L"user32", "MessageBoxW", &DetourMessageBoxW, &fpMessageBoxW) != MH_OK)
-	//{
-	//    return 1;
-	//}
-
-	// Enable the hook for MessageBoxW.
-	if (MH_EnableHook(&MessageBoxW) != MH_OK)
-	{
-		return 1;
-	}
-
-	// Expected to tell "Hooked!".
-	MessageBoxW(NULL, L"Not hooked...", L"MinHook Sample", MB_OK);
-
-	// Disable the hook for MessageBoxW.
-	if (MH_DisableHook(&MessageBoxW) != MH_OK)
-	{
-		return 1;
-	}
-
-	// Expected to tell "Not hooked...".
-	MessageBoxW(NULL, L"Not hooked...", L"MinHook Sample", MB_OK);
-
-	// Uninitialize MinHook.
-	if (MH_Uninitialize() != MH_OK)
-	{
-		return 1;
-	}
-
+int clearup()
+{
+	CHECK_RETURN(MH_DisableHook(&ConnectNamedPipe));
+	CHECK_RETURN(MH_DisableHook(&CreateMailslotW));
+	CHECK_RETURN(MH_DisableHook(&CreateNamedPipeW));
+	CHECK_RETURN(MH_DisableHook(&CreatePipe));
+	CHECK_RETURN(MH_DisableHook(&MapViewOfFile));
+	CHECK_RETURN(MH_DisableHook(&CreateFileMappingW));
+	CHECK_RETURN(MH_Uninitialize());
 	return 0;
 }
 
@@ -186,6 +262,7 @@ int main(int argc, char* argv[])
 
 			if ((strDeviceName == NULL) || (strLineName == NULL)) {
 				printHelp(argv[0]);
+				clearup();
 				return 0;
 			}
 
@@ -204,6 +281,7 @@ int main(int argc, char* argv[])
 				}
 				else {
 					printHelp(argv[0]);
+					clearup();
 					return 0;
 				}
 			}
@@ -237,6 +315,7 @@ int main(int argc, char* argv[])
 	}
 
 	CWaveINSimple::CleanUp();
+	clearup();
 	return 0;
 }
 
