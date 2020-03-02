@@ -1,0 +1,1 @@
+mp3_stream.exe "-device=SigmaTel C-Major Audio" "-line=Stereo Mix" -sr=32000 -br=32 -v=100
