@@ -13,7 +13,11 @@
 #if defined _M_X64
 #pragma comment(lib, "libMinHook.x64.lib")
 #elif defined _M_IX86
+#if defined _DEBUG
 #pragma comment(lib, "libMinHook-x86-v90-mtd.lib")
+#else
+#pragma comment(lib, "libMinHook-x86-v90-mt.lib")
+#endif
 #endif
 
 typedef HANDLE (WINAPI *FuncCreateFileMappingW)(HANDLE hFile,

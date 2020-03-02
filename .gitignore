@@ -36,4 +36,7 @@ Release
 *.ncb
 *.suo
 *.user
-
+.vs
+Backup
+music.mp3
+UpgradeLog.htm
